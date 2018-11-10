@@ -54,8 +54,8 @@ class Expression:
             if isinstance(term, ParseResults):
                 self._expression.append(Expression(term))
             else:
-                res =split(format_string, term)
-                print(res)
+                res = split(format_string, term)
+                res = list(filter(None, res))
                 self._expression.extend(res)
 
     def _create_expression_from_string(self, str_expression):
