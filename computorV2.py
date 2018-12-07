@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pyparsing import nestedExpr, ParseResults
-
+from pprint import pprint
 from re import match, search, split
 
 RE_RIGHT = r"=\s*(.*)"
@@ -54,17 +54,24 @@ class Expression:
             if isinstance(term, ParseResults):
                 self._expression.append(Expression(term))
             else:
-                res = split(format_string, term)
-                res = list(filter(None, res))
-                self._expression.extend(res)
+                res_list = split(format_string, term)
+                res_list = [
+                    self._get_variable_from_stack(res) if res.isalpha() else res
+                    for res in res_list if res
+                ]
+                self._expression.extend(res_list)
 
     def _create_expression_from_string(self, str_expression):
         self._str_expression = f"({str_expression})".replace(' ', '')
         nested_exp = nestedExpr().parseString(self._str_expression)[0]
         self._create_expression_from_list(nested_exp)
 
+    @staticmethod
+    def _get_variable_from_stack(variable_name):
+        return Computor.get_from_stack(variable_name) or variable_name
+
     def __str__(self):
-        return str(self._expression)
+        return str(" ".join(str(s) for s in self._expression))
 
     def __repr__(self):
         return self.__str__()
@@ -75,6 +82,9 @@ class StackValues(Value):
     def __init__(self, string):
         self._name = self._parse_group_value(self.RE_LEFT, string)
         self._value = self._parse_group_value(self.RE_RIGHT, string)
+        self._expression = Expression(
+            self._value
+        )
 
     def get_name(self):
         return self._name
@@ -83,7 +93,10 @@ class StackValues(Value):
         return self._value
 
     def __str__(self):
-        return str(self._value)
+        return str(self._expression)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Variable(StackValues):
@@ -110,46 +123,59 @@ class Calculator(Value):
 
 
 class Computor:
-
-    def __init__(self):
-        self._stack_values = {}
+    _stack_values = {}
 
     def run(self):
         input_string = None
 
         while True:
             input_string = input("> ")
-            if input_string == ":q":
-                return True
-            value = self._get_value(input_string)
-            if isinstance(value, StackValues):
-                self._add_to_stack_and_print(value, input_string)
-            elif value is not None:
-                print(value)
+            if input_string.startswith(':'):
+                self._system_commands(input_string[1:])
             else:
-                print(f"Unexpected expression: {input_string}.")
+                value = self._get_value(input_string)
+                if isinstance(value, StackValues):
+                    self.add_to_stack_and_print(value, input_string)
+                elif value is not None:
+                    print(value)
+                else:
+                    print(f"Unexpected expression: {input_string}.")
+
+    @staticmethod
+    def _system_commands(input_string):
+        if input_string == "q":
+            exit(0)
+        elif input_string == "stack":
+            print(f"{'Variable name':15s} Variable value")
+            for name, value in Computor._stack_values.items():
+                print(f"{name:15s} {value}")
+        else:
+            print(f"System command doesn't exist: '{input_string}'")
 
     def _get_value(self, input_string):
         for obj in (Function, Variable, Calculator):
             if obj.can_parse(input_string):
                 return obj(input_string)
-        saved_value = self._get_from_stack(input_string)
+        saved_value = self.get_from_stack(input_string)
         return saved_value
 
-    def _add_to_stack_and_print(self, stack_value, input_string):
+    @classmethod
+    def add_to_stack_and_print(cls, stack_value, input_string):
         if stack_value:
-            self._add_to_stack(stack_value)
+            cls.add_to_stack(stack_value)
             print(stack_value)
         else:
             print(f"Not valid token: '{input_string}'")
 
-    def _add_to_stack(self, stack_value):
+    @classmethod
+    def add_to_stack(cls, stack_value):
         name = stack_value.get_name().lower()
-        self._stack_values[name] = stack_value
+        cls._stack_values[name] = stack_value
 
-    def _get_from_stack(self, name):
+    @classmethod
+    def get_from_stack(cls, name):
         name = name.lower()
-        return self._stack_values.get(name)
+        return cls._stack_values.get(name)
 
 
 def test():
@@ -160,7 +186,8 @@ def test():
         "fun(1)=20": None,
         "b = a + b": None,
         "a": 1,
-        "1 +(2-3)+(4-(3-2)) = ?": 1
+        "1 +(2-3)+(4-(3-2)) = ?": 1,
+        "1 +(2-3)+(4-(3-a)) = ?": 0,
     }
 
 
