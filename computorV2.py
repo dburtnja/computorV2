@@ -12,6 +12,29 @@ THIRD_STEP_OPERATORS = ['+', '-']
 OPERATORS = [*FIRST_STEP_OPERATORS, *SECOND_STEP_OPERATORS, *THIRD_STEP_OPERATORS]
 
 
+class StackSingleton:
+
+    _singleton = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._singleton:
+            cls._singleton = super(StackSingleton, cls).__new__(cls, *args, **kwargs)
+            cls._stack_values = {}
+        return cls._singleton
+
+    def add_to_stack(self, stack_name, stack_value):
+        name = stack_name.lower()
+        self._stack_values[name] = stack_value
+
+    def get_from_stack(self, name):
+        name = name.lower()
+        return self._stack_values.get(name)
+
+
+print(StackSingleton().add_to_stack("n", 2))
+print(StackSingleton().get_from_stack("n"))
+
+
 class Value:
     RE_LEFT = None
     RE_RIGHT = None

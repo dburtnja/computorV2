@@ -6,9 +6,6 @@ __all__ = ['Expression', 'Term']
 OPERATOR_PRIORITY = 0
 OPERATOR_FUNCTION = 1
 
-RE_VARIABLE_NAME = r"([a-zA-Z]+)"
-RE_FUNCTION_NAME = r"([a-zA-Z]+)\(\s*[a-zA-Z]+\s*\)\s*"
-RE_FUNCTION = r"([a-zA-Z]+)\(\s*[a-zA-Z\d]+\s*\)\s*"
 RE_NUMBER = r"(\d+)"
 
 OPEN_BRACKET = '('
@@ -230,4 +227,3 @@ class Expression:
             self.__handle_operators_in_stacks(element, operators_stack)
         else:
             self._expression_stack.add(element)
-
