@@ -65,14 +65,14 @@ class ExpressionElement:
 
     @staticmethod
     @abstractmethod
-    def can_pars(input_string):
+    def can_parse_as_term(input_string):
         pass
 
 
 class Operator(ExpressionElement):
 
     @staticmethod
-    def can_pars(input_string):
+    def can_parse_as_term(input_string):
         return input_string in OPERATORS
 
     def __init__(self, operator_str):
@@ -85,7 +85,7 @@ class Operator(ExpressionElement):
 
     def __call__(self, left_argument, right_argument):
         if isinstance(left_argument, Term) and isinstance(right_argument, Term):
-            result = self._function(left_argument._value, right_argument._value)
+            result = self._function(left_argument.get_value(), right_argument.get_value())
             return Number(str(result))
         raise TypeError(
             f"Ithere of input parameters should be instance of Term class, received: "
@@ -120,9 +120,13 @@ class Term(ExpressionElement):
 
     _value = None
 
+    @abstractmethod
+    def __init__(self, value):
+        self._value = value
+
     @staticmethod
     @abstractmethod
-    def can_pars(input_string):
+    def can_parse_as_term(input_string):
         pass
 
     def __str__(self):
@@ -130,6 +134,10 @@ class Term(ExpressionElement):
 
     def __repr__(self):
         return f"Term({self._value})"
+
+    @abstractmethod
+    def get_value(self):
+        pass
 
 
 class Number(Term):
@@ -139,9 +147,13 @@ class Number(Term):
             raise ValueError(f"'{input_string}' isn't a number.")
         else:
             self._value = eval(input_string)
+        super().__init__(self._value)
+
+    def get_value(self):
+        return self._value
 
     @staticmethod
-    def can_pars(input_string):
+    def can_parse_as_term(input_string):
         result = match(RE_NUMBER, input_string)
         if result:
             return result.group(0) == input_string
@@ -157,12 +169,12 @@ class ExpressionElementFactory:
         self._term_types = term_types
 
     def get_expression_part(self, expression_element):
-        if Operator.can_pars(expression_element):
+        if Operator.can_parse_as_term(expression_element):
             return Operator(expression_element)
-        if Number.can_pars(expression_element):
+        if Number.can_parse_as_term(expression_element):
             return Number(expression_element)
         for term in self._term_types:
-            if term.can_pars(expression_element):
+            if term.can_parse_as_term(expression_element):
                 return term(expression_element)
         raise ValueError(f"Can't pars such expression term: '{expression_element}''")
 
