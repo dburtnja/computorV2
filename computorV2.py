@@ -6,12 +6,20 @@ from polish_notation import Expression, Term
 
 
 RE_RIGHT = r"=\s*(.*)"
+RE_VARIABLE = r"([a-zA-Z]+)\s*"
+RE_FUNCTION_NAME = r"([a-zA-Z]+)\(\s*[a-zA-Z]+\s*\)\s*"
+RE_FUNCTION = r"([a-zA-Z]+)\(\s*[a-zA-Z\d]+\s*\)\s*"
+
 FORBIDDEN_VARIABLE_NAMES = ['i']
 
 FIRST_STEP_OPERATORS = ['^']
 SECOND_STEP_OPERATORS = ['*', '/', '%']
 THIRD_STEP_OPERATORS = ['+', '-']
 OPERATORS = [*FIRST_STEP_OPERATORS, *SECOND_STEP_OPERATORS, *THIRD_STEP_OPERATORS]
+
+
+class StackValueDoesntExist(RuntimeWarning):
+    pass
 
 
 class StackSingleton:
@@ -24,19 +32,33 @@ class StackSingleton:
             cls._stack_values = {}
         return cls._singleton
 
-    def add_to_stack(self, stack_name, stack_value):
-        name = stack_name.lower()
-        self._stack_values[name] = stack_value
+    def add_to_stack(self, stack_value):
+        if isinstance(stack_value, StackValues):
+            name = stack_value.get_name().lower()
+            self._stack_values[name] = stack_value
+        else:
+            raise ValueError(f"stack_value should be instance of StackValues class, received: '{type(stack_value)}'")
 
     def get_from_stack(self, name):
         name = name.lower()
-        return self._stack_values.get(name)
+        variable = self._stack_values.get(name)
+        if variable:
+            return variable
+        else:
+            raise StackValueDoesntExist(f"Unresolved reference: '{name}'")
 
 
 class Value:
-    RE_LEFT = None
-    RE_RIGHT = None
-    RE_IN_EXPRESSION = None
+
+    @classmethod
+    @abstractmethod
+    def _get_re_left(cls):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def _get_re_right(cls):
+        pass
 
     @staticmethod
     def _parse_group_value(reg_exp, string):
@@ -45,7 +67,7 @@ class Value:
 
     @classmethod
     def _get_value_pattern(cls):
-        return f"{cls.RE_LEFT}{cls.RE_RIGHT}"
+        return f"{cls._get_re_left()}{cls._get_re_right()}"
 
     @classmethod
     def can_parse(cls, string):
@@ -58,42 +80,80 @@ class Value:
 
 class StackValues(Value):
 
-    @staticmethod
-    @abstractmethod
-    def can_parse_as_term(input_string):
-        pass
-
     def __init__(self, string):
-        self._name = self._parse_group_value(self.RE_LEFT, string)
-        self._value = Expression(
-            self._parse_group_value(self.RE_RIGHT, string),
-            term_types=(Variable, Function)
-        ).evaluate()
+        self._name = self._parse_group_value(self._get_re_left(), string)
+        self._str_value = self._parse_group_value(self._get_re_right(), string)
+        self._result = self._count_result()
 
     def get_name(self):
         return self._name
 
-    def get_value(self):
-        return self._value
+    def get_result(self):
+        return self._result
 
     def __str__(self):
-        return str(self._value)
+        return str(self._result)
 
     def __repr__(self):
         return self.__str__()
 
+    @abstractmethod
+    def _count_result(self):
+        pass
 
+
+class TermVariable(Term):
+
+    def __init__(self, input_string):
+        variable_name = input_string.strip().lower()
+        variable = StackSingleton().get_from_stack(variable_name)
+        super().__init__(variable.get_result())
+
+    @staticmethod
+    def can_parse_as_term(input_string):
+        result = match(RE_VARIABLE, input_string)
+        if result:
+            return result.group(0) == input_string and result.group(1) not in FORBIDDEN_VARIABLE_NAMES
+        return False
+
+    def get_value(self):
+        return self._value
+
+
+class Variable(StackValues):
+
+    def _count_result(self):
+        return Expression(self._str_value, term_types=(TermVariable, )).evaluate().get_value()
+
+    @classmethod
+    def _get_re_left(cls):
+        return RE_VARIABLE
+
+    @classmethod
+    def _get_re_right(cls):
+        return RE_RIGHT
+
+
+class Function(StackValues):
+
+    @classmethod
+    def _get_re_left(cls):
+        return RE_FUNCTION_NAME
+
+    @classmethod
+    def _get_re_right(cls):
+        return RE_RIGHT
 
 
 class Calculator(Value):
-    RE_LEFT = r"(.*)\s*"
-    RE_RIGHT = r"=\s*\?\s*"
 
-    def __init__(self, string):
-        self._expression = Expression(
+    @classmethod
+    def _get_re_left(cls):
+        return r"(.*)\s*"
 
-            self._parse_group_value(self._get_value_pattern(), string)
-        )
+    @classmethod
+    def _get_re_right(cls):
+        return r"=\s*\?\s*"
 
     def __str__(self):
         return str(self._expression)
@@ -164,6 +224,7 @@ class Computor:
 #         "a": 1,
 #         "1 +(2-3)+(4-(3-2)) = ?": 1,
 #         "1 +(2-3)+(4-(3-a)) = ?": 0,
+#         "a = a +1": 2,
 #     }
 
 

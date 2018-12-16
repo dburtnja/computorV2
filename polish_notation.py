@@ -5,8 +5,10 @@ __all__ = ['Expression', 'Term']
 
 OPERATOR_PRIORITY = 0
 OPERATOR_FUNCTION = 1
+OPERATOR_DELIMITER = 2
 
-RE_NUMBER = r"(\d+)"
+# RE_NUMBER = r"(\d+)"
+RE_NUMBER = r"(\d+(?:\.\d+)?)"
 
 OPEN_BRACKET = '('
 CLOSE_BRACKET = ')'
@@ -14,15 +16,15 @@ CLOSE_BRACKET = ')'
 BRACKETS = [OPEN_BRACKET, CLOSE_BRACKET]
 
 OPERATORS = {
-    '+': (1, lambda x, y: x + y),
-    '-': (1, lambda x, y: x - y),
-    '*': (2, lambda x, y: x * y),
-    '/': (2, lambda x, y: x / y),
-    '^': (3, lambda x, y: x ** y),
-    '%': (2, lambda x, y: x % y),
+    '+': (1, lambda x, y: x + y, '+'),
+    '-': (1, lambda x, y: x - y, '\-'),
+    '*': (2, lambda x, y: x * y, '*'),
+    '/': (2, lambda x, y: x / y, '/'),
+    '^': (3, lambda x, y: x ** y, '^'),
+    '%': (2, lambda x, y: x % y, '%'),
 }
 
-EXPRESSION_SPLITTERS = [*BRACKETS, *OPERATORS]
+EXPRESSION_SPLITTERS = [*[operator[OPERATOR_DELIMITER] for operator in OPERATORS.values()], *BRACKETS]
 
 
 class Stack:
@@ -163,7 +165,7 @@ class Number(Term):
 class ExpressionElementFactory:
 
     def __init__(self, term_types=()):
-        invalid_types = [term_type for term_type in term_types if not isinstance(term_type, Term)]
+        invalid_types = [term_type for term_type in term_types if not issubclass(term_type, Term)]
         if invalid_types:
             raise TypeError(f"{invalid_types} should be instance of Term class")
         self._term_types = term_types
@@ -189,7 +191,7 @@ class Expression:
 
     def _parsing_string_expression(self, string_expression):
         operators_stack = Stack()
-        pattern = f"([//{r'/'.join(EXPRESSION_SPLITTERS)}])"
+        pattern = f"([{''.join(EXPRESSION_SPLITTERS)}])"
 
         for element in split(pattern, string_expression):
             if element:
