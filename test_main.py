@@ -20,7 +20,7 @@ def run_test():
     tests = {
         '(52 + 2)^2*(2+(1+1))': '(52 + 2)**2*(2+(1+1))',
         "a + b": '7 ',
-        # "a + b - c": '7 ',
+        "a + b - c": "Unresolved reference: 'c'",
         "5- 3": "5 -3",
         '2+2': "2+2",
         '3-2': "3-2",
@@ -41,8 +41,11 @@ def run_test():
         try:
             result = eval(str(Expression(test_expression, term_types=(TermVariable,)).evaluate()))
         except StackValueDoesntExist as e:
-            result = e
-        expected = eval(python_test_expression)
+            result = str(e)
+        try:
+            expected = eval(python_test_expression)
+        except SyntaxError:
+            expected = python_test_expression
         if result != expected:
             print(f"Error: {test_expression}: result: '{result}', expected: '{expected}'.")
         else:
