@@ -172,13 +172,16 @@ class Computor:
             if input_string.startswith(':'):
                 self._system_commands(input_string[1:])
             else:
-                value = self._get_value(input_string)
-                if isinstance(value, StackValues):
-                    self.add_to_stack_and_print(value, input_string)
-                elif value is not None:
-                    print(value)
-                else:
-                    print(f"Unexpected expression: {input_string}.")
+                try:
+                    value = self._get_value(input_string)
+                    if isinstance(value, StackValues):
+                        self.add_to_stack_and_print(value, input_string)
+                    elif value is not None:
+                        print(value)
+                    else:
+                        print(f"Unexpected expression: {input_string}.")
+                except StackValueDoesntExist as message:
+                    print(message)
 
     @staticmethod
     def _system_commands(input_string):
@@ -207,7 +210,7 @@ class Computor:
 
     def add_to_stack(self, stack_value):
         name = stack_value.get_name().lower()
-        self._stack_values.add_to_stack(name, stack_value)
+        self._stack_values.add_to_stack(stack_value)
 
     def get_from_stack(self, name):
         name = name.lower()
