@@ -18,19 +18,21 @@ RE_FUNCTION = r"([a-zA-Z]+)\(\s*[a-zA-Z\d]+\s*\)\s*"
 
 def run_test():
     tests = {
-        '(52 + 2)^2*(2+(1+1))': '(52 + 2)**2*(2+(1+1))',
-        "a + b": '7 ',
-        "a + b - c": '7 ',
-        "5- 3": "5 -3",
-        '2+2': "2+2",
-        '3-2': "3-2",
-        '2*3': "2*3",
-        '6/2': "6/2",
-        '3^3': "3**3",
-        '6%5': "6%5",
-        '6.255+2': "6.255+2",
-        '4.242': "4.242",
+        # '(52 + 2)^2*(2+(1+1))': '(52 + 2)**2*(2+(1+1))',
+        # "a + b": '7 ',
+        # "a + b - c": '7 ',
+        # "5- 3": "5 -3",
+        # '2+2': "2+2",
+        # '3-2': "3-2",
+        # '2*3': "2*3",
+        # '6/2': "6/2",
+        # '3^3': "3**3",
+        # '6%5': "6%5",
+        # '6.255+2': "6.255+2",
+        # '4.242': "4.242",
         '-3 +2': "-3 +2",
+        "2+(-(-3))": "2+(-(-3))",
+        "2+--2": "2+--2",
     }
     StackSingleton().add_to_stack(Variable("a=2"))
     StackSingleton().add_to_stack(Variable("b=5"))
@@ -43,7 +45,8 @@ def run_test():
         if result != expected:
             print(f"Error: {test_expression}: result: '{result}', expected: '{expected}'.")
         else:
-            print(f"Success: {test_expression}: result: '{result}', expected: '{expected}'.")
+            print(f"Success: {test_expression}: result: '{result}', expected: '{expected}'.")#hd khrystynka smart
+
 
 
 if __name__ == '__main__':

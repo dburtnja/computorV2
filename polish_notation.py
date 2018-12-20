@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from re import match, split
+from inspect import signature
 
 __all__ = ['Expression', 'Term']
 
@@ -22,6 +23,7 @@ OPERATORS = {
     '/': (2, lambda x, y: x / y, '/'),
     '^': (3, lambda x, y: x ** y, '^'),
     '%': (2, lambda x, y: x % y, '%'),
+    "#": (3, lambda x: -x, '#')
 }
 
 EXPRESSION_SPLITTERS = [*[operator[OPERATOR_DELIMITER] for operator in OPERATORS.values()], *BRACKETS]
@@ -84,10 +86,14 @@ class Operator(ExpressionElement):
         self._operator_str = operator_str
         self._priority = operator[OPERATOR_PRIORITY]
         self._function = operator[OPERATOR_FUNCTION]
+        self._number_of_parameters = len(signature(self._function).parameters)
 
-    def __call__(self, left_argument, right_argument):
-        if isinstance(left_argument, Term) and isinstance(right_argument, Term):
-            result = self._function(left_argument.get_value(), right_argument.get_value())
+    def get_number_of_parameters(self):
+        return self._number_of_parameters
+
+    def __call__(self, *args):
+        if all([term for term in args if isinstance(term, Term)]):
+            result = self._function(*[arg.get_value() for arg in args])
             return Number(str(result))
         raise TypeError(
             f"Ithere of input parameters should be instance of Term class, received: "
@@ -144,8 +150,8 @@ class Term(ExpressionElement):
 
 class Number(Term):
 
-    def __init__(self, input_string):
-        if set(input_string).difference('0123456789.'):
+    def __init__(self, input_string: str):
+        if set(input_string).difference('-0123456789.'):
             raise ValueError(f"'{input_string}' isn't a number.")
         else:
             self._value = eval(input_string)
@@ -192,6 +198,7 @@ class Expression:
     def _parsing_string_expression(self, string_expression):
         operators_stack = Stack()
         pattern = f"([{''.join(EXPRESSION_SPLITTERS)}])"
+        previous_element = []
 
         for element in split(pattern, string_expression):
             if element:
@@ -200,7 +207,7 @@ class Expression:
                 elif element == CLOSE_BRACKET:
                     self._remove_open_bracket_from(operators_stack)
                 else:
-                    self._handle_terms(element, operators_stack)
+                    self._handle_terms(element, operators_stack, previous_element)
 
         while operators_stack:
             self._expression_stack.add(operators_stack.get())
@@ -212,9 +219,8 @@ class Expression:
             element = self._expression_stack.get_from_bottom()
             if isinstance(element, Operator):
                 method = element
-                right_number = buffer.get()
-                left_number = buffer.get()
-                result = method(left_number, right_number)
+                input_numbers = [buffer.get() for _ in range(method.get_number_of_parameters())]
+                result = method(*input_numbers)
                 buffer.add(result)
             else:
                 buffer.add(element)
@@ -235,9 +241,15 @@ class Expression:
             self._expression_stack.add(operators_stack.get())
             operators_stack.add(operator)
 
-    def _handle_terms(self, element, operators_stack):
+    def _handle_terms(self, element, operators_stack, previous_element):
+        if element == '-' and (not previous_element or isinstance(previous_element[-1], Operator)):
+            element = '#'
         element = self._expression_element_factory.get_expression_part(element)
+
         if isinstance(element, Operator):
             self.__handle_operators_in_stacks(element, operators_stack)
         else:
             self._expression_stack.add(element)
+
+        print(element, previous_element)
+        previous_element.append(element)
