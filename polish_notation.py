@@ -225,7 +225,7 @@ class Expression:
             if isinstance(element, Operator):
                 method = element
                 input_numbers = [buffer.get() for _ in range(method.get_number_of_parameters())]
-                result = method(*input_numbers)
+                result = method(*input_numbers[::-1])
                 buffer.add(result)
             else:
                 buffer.add(element)
