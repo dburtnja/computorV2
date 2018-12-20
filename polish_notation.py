@@ -23,7 +23,12 @@ OPERATORS = {
     '/': (2, lambda x, y: x / y, '/'),
     '^': (3, lambda x, y: x ** y, '^'),
     '%': (2, lambda x, y: x % y, '%'),
-    "#": (3, lambda x: -x, '#')
+    "#": (3, lambda x: -x, '#'),
+    "@": (3, lambda x: +x, "@"),
+}
+UNARY_OPERATORS_REPLACEMENT = {
+    '-': '#',
+    '+': '@',
 }
 
 EXPRESSION_SPLITTERS = [*[operator[OPERATOR_DELIMITER] for operator in OPERATORS.values()], *BRACKETS]
@@ -242,14 +247,12 @@ class Expression:
             operators_stack.add(operator)
 
     def _handle_terms(self, element, operators_stack, previous_element):
-        if element == '-' and (not previous_element or isinstance(previous_element[-1], Operator)):
-            element = '#'
+        if element in UNARY_OPERATORS_REPLACEMENT and (not previous_element or isinstance(previous_element[-1], Operator)):
+            element = UNARY_OPERATORS_REPLACEMENT[element]
         element = self._expression_element_factory.get_expression_part(element)
 
         if isinstance(element, Operator):
             self.__handle_operators_in_stacks(element, operators_stack)
         else:
             self._expression_stack.add(element)
-
-        print(element, previous_element)
         previous_element.append(element)
