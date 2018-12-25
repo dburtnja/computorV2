@@ -1,6 +1,4 @@
 from abc import abstractmethod
-from pyparsing import nestedExpr, ParseResults
-from pprint import pprint
 from re import match, search, split
 from polish_notation import Expression, Term
 
@@ -40,12 +38,15 @@ class StackSingleton:
             raise ValueError(f"stack_value should be instance of StackValues class, received: '{type(stack_value)}'")
 
     def get_from_stack(self, name):
-        name = name.lower()
-        variable = self._stack_values.get(name)
+        lower_name = name.lower()
+        variable = self._stack_values.get(lower_name)
         if variable:
             return variable
         else:
             raise StackValueDoesntExist(f"Unresolved reference: '{name}'")
+
+    def get_all_values(self):
+        return self._stack_values
 
 
 class Value:
@@ -120,6 +121,19 @@ class TermVariable(Term):
         return self._value
 
 
+class TermMatrix(Term):
+
+    def __init__(self, value):
+        super().__init__(value)
+
+    @staticmethod
+    def can_parse_as_term(input_string):
+        pass
+
+    def get_value(self):
+        pass
+
+
 class Variable(StackValues):
 
     def _count_result(self):
@@ -145,7 +159,40 @@ class Function(StackValues):
         return RE_RIGHT
 
 
+class Matrix:
+    OPENED_BRACKET = '['
+    CLOSED_BRACKET = ']'
+    DELIMETERS = r"([\[\],;])"
+
+    def __init__(self, matrix_str):
+        self._matrix_list = iter(
+            el for el in split(self.DELIMETERS, matrix_str.replace(' ', ''))
+            if el and el not in (';', ',')
+        )
+        self._matrix = self.__recursive()[0]
+        print(self._matrix)
+
+    def __recursive(self):
+        result = []
+
+        for el in self._matrix_list:
+            if el == self.OPENED_BRACKET:
+                result.append(self.__recursive())
+            elif el == self.CLOSED_BRACKET:
+                return result
+            else:
+                result.append(el)
+        return result
+
+
 class Calculator(Value):
+
+    def __init__(self, string):
+        self._str_value = self._parse_group_value(self._get_value_pattern(), string)
+        self._result = self._count_result()
+
+    def _count_result(self):
+        return Expression(self._str_value, term_types=(TermVariable,)).evaluate().get_value()
 
     @classmethod
     def _get_re_left(cls):
@@ -156,7 +203,7 @@ class Calculator(Value):
         return r"=\s*\?\s*"
 
     def __str__(self):
-        return str(self._expression)
+        return str(self._result)
 
 
 class Computor:
@@ -165,32 +212,35 @@ class Computor:
         self._stack_values = StackSingleton()
 
     def run(self):
-        input_string = None
 
         while True:
             input_string = input("> ")
-            if input_string.startswith(':'):
-                self._system_commands(input_string[1:])
-            else:
-                try:
-                    value = self._get_value(input_string)
-                    if isinstance(value, StackValues):
-                        self.add_to_stack_and_print(value, input_string)
-                    elif value is not None:
-                        print(value)
-                    else:
-                        print(f"Unexpected expression: {input_string}.")
-                except StackValueDoesntExist as message:
-                    print(message)
+            result = self._calculate_input(input_string)
+            print(result)
 
-    @staticmethod
-    def _system_commands(input_string):
+    def _calculate_input(self, input_string):
+        if input_string.startswith(':'):
+            self._system_commands(input_string[1:])
+        else:
+            try:
+                value = self._get_value(input_string)
+                if value is None:
+                    return f"Unexpected expression: {input_string}."
+                if isinstance(value, StackValues):
+                    self.add_to_stack(value)
+                return str(value)
+            except (StackValueDoesntExist, ValueError) as message:
+                return str(message)
+
+    def _system_commands(self, input_string):
         if input_string == "q":
             exit(0)
         elif input_string == "stack":
             print(f"{'Variable name':15s} Variable value")
-            for name, value in Computor._stack_values.items():
+            for name, value in self._stack_values.get_all_values().items():
                 print(f"{name:15s} {value}")
+        elif input_string == "self_test":
+            self.__run_test(TEST_CASES)
         else:
             print(f"System command doesn't exist: '{input_string}'")
 
@@ -201,55 +251,41 @@ class Computor:
         saved_value = self.get_from_stack(input_string)
         return saved_value
 
-    def add_to_stack_and_print(self, stack_value, input_string):
-        if stack_value:
-            self.add_to_stack(stack_value)
-            print(stack_value)
-        else:
-            print(f"Not valid token: '{input_string}'")
-
     def add_to_stack(self, stack_value):
-        name = stack_value.get_name().lower()
         self._stack_values.add_to_stack(stack_value)
 
     def get_from_stack(self, name):
-        name = name.lower()
         return self._stack_values.get_from_stack(name)
 
-#
-# def test():
-#     test_strings = {
-#         "a = 1": 1,
-#         "fu() = 0": None,
-#         "fuN(x)": None,
-#         "fun(1)=20": None,
-#         "b = a + b": None,
-#         "a": 1,
-#         "1 +(2-3)+(4-(3-2)) = ?": 1,
-#         "1 +(2-3)+(4-(3-a)) = ?": 0,
-#         "a = a +1": 2,
-#     }
+    def __run_test(self, test_cases):
+        error_counter = 0
+
+        for test_case, expected_result in test_cases.items():
+            input_string = test_case
+            if input_string == ":self_test":
+                continue
+            else:
+                result = self._calculate_input(input_string)
+                if result == expected_result:
+                    print(f"Success: input = {input_string}, result = {result}")
+                else:
+                    print(f"ERROR: input='{input_string}'. Expected: '{expected_result}'. Result '{result}'")
+                    error_counter += 1
+        print(f"Run {len(test_cases)} tests. {error_counter} failed.")
 
 
-
-
-# RE_VARIABLE_NAME = r"([a-zA-Z]+)"
-# RE_FUNCTION_NAME = r"([a-zA-Z]+)\(\s*[a-zA-Z]+\s*\)\s*"
-# RE_FUNCTION = r"([a-zA-Z]+)\(\s*[a-zA-Z\d]+\s*\)\s*"
-#
-#
-
-def run_test():
-    tests = {
-        '(52 + 2)^2*(2+(1+1))': '(52 + 2)**2*(2+(1+1))',
-    }
-    for test_expression, python_test_expression in tests.items():
-        result = eval(str(Expression(test_expression).evaluate()))
-        expected = eval(python_test_expression)
-        if result != expected:
-            print(f"Error: {test_expression}: result: '{result}', expected: '{expected}'.")
-        else:
-            print(f"Success: {test_expression}: result: '{result}', expected: '{expected}'.")
+TEST_CASES = {
+    "a = 1": '1',
+    "fu() = 0": "0",
+    "fuN(x)": "Unresolved reference: 'fuN(x)'",
+    "fun(1)=20": "Invalid parameter name: '1'",
+    "b = a + b": "Unresolved reference: 'b'",
+    "a": "1",
+    "1 +(2-3)+(4-(3-2)) = ?": "3",
+    "1 +(2-3)+(4-(3-a)) = ?": "2",
+    "a = a +1": "2",
+    "M = [[2, 3];[1, 2]] + [[fu(), 2];[1, 2]]": "[[2, 5];[2,4]]",
+}
 
 
 if __name__ == '__main__':

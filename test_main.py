@@ -52,11 +52,13 @@ def run_test():
             print(f"Success: {test_expression}: result: '{result}', expected: '{expected}'.")#hd khrystynka smart
 
 
+# if __name__ == '__main__':
+#     try:
+#         run_test()
+#     except StackValueDoesntExist as e:
+#         print(e)
 
-if __name__ == '__main__':
-    try:
-        run_test()
-    except StackValueDoesntExist as e:
-        print(e)
+import json
 
+print(json.loads("[1, 2];{3, 4}"))
 
