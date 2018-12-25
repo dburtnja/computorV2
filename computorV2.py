@@ -16,6 +16,10 @@ THIRD_STEP_OPERATORS = ['+', '-']
 OPERATORS = [*FIRST_STEP_OPERATORS, *SECOND_STEP_OPERATORS, *THIRD_STEP_OPERATORS]
 
 
+def common_expression_get_value(expression):
+    return Expression(expression, term_types=(TermVariable, )).evaluate().get_value()
+
+
 class StackValueDoesntExist(RuntimeWarning):
     pass
 
@@ -137,7 +141,7 @@ class TermMatrix(Term):
 class Variable(StackValues):
 
     def _count_result(self):
-        return Expression(self._str_value, term_types=(TermVariable, )).evaluate().get_value()
+        return common_expression_get_value(self._str_value)
 
     @classmethod
     def _get_re_left(cls):
@@ -170,7 +174,15 @@ class Matrix:
             if el and el not in (';', ',')
         )
         self._matrix = self.__recursive()[0]
-        print(self._matrix)
+        self._y = len(self._matrix)
+        if self._y:
+            self._x = len(self._matrix[0])
+            for row in self._matrix:
+                if len(row) != self._x:
+                    raise ValueError("Matrices have different columns len: '{}'.")
+
+    def size(self):
+        return self._x, self._y
 
     def __recursive(self):
         result = []
@@ -184,6 +196,23 @@ class Matrix:
                 result.append(el)
         return result
 
+    def __add__(self, other):
+        if isinstance(other, Matrix):
+            result = []
+
+            if other.size() != self.size():
+                raise ValueError("Can't add matrices with different size.")
+            for i, self_row in enumerate(self._matrix):
+                inner_result = []
+                for j, self_el in enumerate(self_row):
+                    inner_result.append(common_expression_get_value(f"{self_el} + {other._matrix[i][j]}"))
+                result.append(inner_result)
+            return result
+        return NotImplemented
+
+    def __repr__(self):
+        return str(self._matrix)
+
 
 class Calculator(Value):
 
@@ -192,7 +221,7 @@ class Calculator(Value):
         self._result = self._count_result()
 
     def _count_result(self):
-        return Expression(self._str_value, term_types=(TermVariable,)).evaluate().get_value()
+        return common_expression_get_value(self._str_value)
 
     @classmethod
     def _get_re_left(cls):
@@ -288,7 +317,8 @@ TEST_CASES = {
 }
 
 
-if __name__ == '__main__':
-    computor = Computor()
-    computor.run()
+# if __name__ == '__main__':
+#     computor = Computor()
+#     computor.run()
 
+print(Matrix("[2, 3]") + Matrix("[2, a]"))
