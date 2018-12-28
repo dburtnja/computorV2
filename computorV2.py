@@ -17,7 +17,7 @@ OPERATORS = [*FIRST_STEP_OPERATORS, *SECOND_STEP_OPERATORS, *THIRD_STEP_OPERATOR
 
 
 def common_expression_get_value(expression):
-    return Expression(expression, term_types=(TermVariable, )).evaluate().get_value()
+    return Expression(expression, term_types=(TermVariable, )).evaluate()
 
 
 class StackValueDoesntExist(RuntimeWarning):
@@ -141,7 +141,7 @@ class TermMatrix(Term):
 class Variable(StackValues):
 
     def _count_result(self):
-        return common_expression_get_value(self._str_value)
+        return int(common_expression_get_value(self._str_value))
 
     @classmethod
     def _get_re_left(cls):
@@ -317,8 +317,8 @@ TEST_CASES = {
 }
 
 
-# if __name__ == '__main__':
-#     computor = Computor()
-#     computor.run()
-
-print(Matrix("[2, 3]") + Matrix("[2, a]"))
+if __name__ == '__main__':
+    computor = Computor()
+    computor.run()
+#
+# print(Matrix("[2, 3]") + Matrix("[2, a]"))

@@ -228,7 +228,7 @@ class Expression:
                 buffer.add(result)
             else:
                 buffer.add(element)
-        return buffer.get()
+        return str(buffer.get())
 
     def _remove_open_bracket_from(self, operators_stack):
         while operators_stack:
